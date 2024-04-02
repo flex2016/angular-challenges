@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { randText } from '@ngneat/falso';
+import { Todo } from './app.model';
+import { TodoService } from './app.service';
 
 @Component({
   standalone: true,
@@ -11,41 +11,57 @@ import { randText } from '@ngneat/falso';
     <div *ngFor="let todo of todos">
       {{ todo.title }}
       <button (click)="update(todo)">Update</button>
+      <button (click)="deleteTodo(todo.id)">Delete</button>
     </div>
   `,
   styles: [],
 })
 export class AppComponent implements OnInit {
-  todos!: any[];
+  todos!: Todo[];
 
-  constructor(private http: HttpClient) {}
+  constructor(private todoService: TodoService) {}
 
   ngOnInit(): void {
-    this.http
-      .get<any[]>('https://jsonplaceholder.typicode.com/todos')
-      .subscribe((todos) => {
-        this.todos = todos;
-      });
+    this.getTodos();
   }
 
-  update(todo: any) {
-    this.http
-      .put<any>(
-        `https://jsonplaceholder.typicode.com/todos/${todo.id}`,
-        JSON.stringify({
-          todo: todo.id,
-          title: randText(),
-          body: todo.body,
-          userId: todo.userId,
-        }),
-        {
-          headers: {
-            'Content-type': 'application/json; charset=UTF-8',
-          },
-        },
-      )
-      .subscribe((todoUpdated: any) => {
-        this.todos[todoUpdated.id - 1] = todoUpdated;
-      });
+  getTodos(): void {
+    this.todoService.getTodos().subscribe(
+      (todos) => {
+        this.todos = todos; // Assign the retrieved todos to the component's todos array
+      },
+      (error) => {
+        console.error('Error fetching todos:', error);
+      },
+    );
+  }
+
+  // Method to update a todo
+  update(todo: Todo): void {
+    this.todoService.updateTodo(todo).subscribe(
+      (updatedTodo) => {
+        const index = this.todos.findIndex((t) => t.id === updatedTodo.id);
+        if (index !== -1) {
+          // Update the todo in the todos array
+          this.todos[index] = updatedTodo;
+        }
+      },
+      (error) => {
+        console.error('Error updating todo:', error);
+      },
+    );
+  }
+
+  // Method to delete a todo
+  deleteTodo(id: number): void {
+    this.todoService.deleteTodo(id).subscribe(
+      () => {
+        // Filter out the deleted todo from the todos array
+        this.todos = this.todos.filter((todo) => todo.id !== id);
+      },
+      (error) => {
+        console.error('Error deleting todo:', error);
+      },
+    );
   }
 }
