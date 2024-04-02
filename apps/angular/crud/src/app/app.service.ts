@@ -1,41 +1,57 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { randText } from '@ngneat/falso';
-import { Observable } from 'rxjs';
 import { Todo } from './app.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class TodoService {
+  #todos = signal<Todo[]>([]);
+  todos = computed(this.#todos);
+
   private apiUrl = 'https://jsonplaceholder.typicode.com/todos'; // Base URL for the API
 
   constructor(private http: HttpClient) {}
 
-  getTodos(): Observable<Todo[]> {
-    return this.http.get<Todo[]>(this.apiUrl);
+  public getTodos(): void {
+    this.http.get<Todo[]>(this.apiUrl).subscribe((todos) => {
+      this.#todos.set(todos);
+    });
   }
 
-  updateTodo(todo: Todo): Observable<Todo> {
-    const url = `${this.apiUrl}/${todo.id}`; // Construct the URL for the specific todo
+  public updateTodo(todo: Todo): void {
+    const url = `${this.apiUrl}/${todo.id}`;
     const headers = new HttpHeaders({
       'Content-type': 'application/json; charset=UTF-8',
     });
 
-    return this.http.put<Todo>(
-      url,
-      JSON.stringify({
-        id: todo.id,
-        title: randText(), // Assuming randText() generates random text
-        body: todo.body,
-        userId: todo.userId,
-      }),
-      { headers },
-    );
+    this.http
+      .put<Todo>(
+        url,
+        JSON.stringify({
+          id: todo.id,
+          title: randText(),
+          body: todo.body,
+          userId: todo.userId,
+        }),
+        { headers },
+      )
+      .subscribe((todoUpdated: Todo) => {
+        this.#todos.update((todos) =>
+          todos.map((todo) =>
+            todo.id === todoUpdated.id ? todoUpdated : todo,
+          ),
+        );
+      });
   }
 
-  deleteTodo(id: number): Observable<Todo> {
+  public deleteTodo(id: number): void {
     const url = `${this.apiUrl}/${id}`;
-    return this.http.delete<Todo>(url);
+    this.http
+      .delete<Todo>(url)
+      .subscribe((_) =>
+        this.#todos.update((todos) => todos.filter((todo) => todo.id !== id)),
+      );
   }
 }
